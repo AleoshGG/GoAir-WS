@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Cliente WebSocket con Gorilla</title>
+  </head>
+  <body>
+    <h1>Cliente WebSocket</h1>
+    <input type="text" id="mensaje" placeholder="Escribe un mensaje" />
+    <button onclick="enviarMensaje()">Enviar</button>
+    <pre id="log"></pre>
+
+    <script>
+      // Conexión al servidor WebSocket
+      const socket = new WebSocket("ws://localhost:8081/ws");
+
+      socket.onopen = () => {
+        document.getElementById("log").textContent +=
+          "Conectado al servidor WebSocket\n";
+      };
+
+      socket.onmessage = (event) => {
+        document.getElementById("log").textContent +=
+          "Recibido: " + event.data + "\n";
+      };
+
+      socket.onclose = () => {
+        document.getElementById("log").textContent += "Conexión cerrada\n";
+      };
+
+      socket.onerror = (error) => {
+        document.getElementById("log").textContent += "Error: " + error + "\n";
+      };
+
+      function enviarMensaje() {
+        const input = document.getElementById("mensaje");
+        const mensaje = input.value;
+        socket.send(mensaje);
+        input.value = "";
+      }
+    </script>
+  </body>
+</html>
