@@ -2,9 +2,12 @@ package routes
 
 import (
 	"GoAir-WS/infrastructure/controllers"
-	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
-func SetupRoutes(controller *controllers.WebSocketController) {
-    http.HandleFunc("/ws", controller.HandleWebSocket)
+func RegisterRoutes(r *gin.Engine, wsController *controllers.WebSocketController) {
+	r.GET("/ws", func(c *gin.Context) {
+		wsController.HandleWebSocket(c.Writer, c.Request)
+	})
 }
