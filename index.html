@@ -24,6 +24,11 @@
           "Recibido: " + event.data + "\n";
       };
 
+      socket.onmessage = (event) => {
+        document.getElementById("log").textContent +=
+          "Recibido: " + event.data + "\n";
+      };
+
       socket.onclose = () => {
         document.getElementById("log").textContent += "Conexión cerrada\n";
       };
