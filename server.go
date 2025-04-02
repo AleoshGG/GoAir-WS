@@ -12,10 +12,10 @@ import (
 
 func main() {
 	godotenv.Load()
-	infrastructure.SetupDependencies()
+	config.SetupDependencies()
 
 	r := gin.Default()
-	routes.RegisterRoutes(r, infrastructure.WebSocketCtrl)
+	routes.RegisterRoutes(r, config.WebSocketCtrl)
 
 	port := os.Getenv("PORT")
 	if port == "" {

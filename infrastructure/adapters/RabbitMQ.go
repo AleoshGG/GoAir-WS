@@ -1,98 +1,113 @@
 package adapters
 
 import (
-	"encoding/json"
 	"log"
-	"strconv"
 
 	amqp "github.com/rabbitmq/amqp091-go"
+	"GoAir-WS/domain/repositories"
 )
 
 type RabbitMQAdapter struct {
-    conn    *amqp.Connection
-    channel *amqp.Channel
+	conn *amqp.Connection
+	ch   *amqp.Channel
 }
 
-func NewRabbitMQAdapter(amqpURI string) *RabbitMQAdapter {
-    conn, err := amqp.Dial(amqpURI)
-    if err != nil {
-        log.Fatal("Error conectando a RabbitMQ:", err)
-    }
+func NewRabbitMQAdapter(amqpURI string) repositories.MessageRepository {
+	conn, err := amqp.Dial(amqpURI)
+	if err != nil {
+		log.Fatal("Error connecting to RabbitMQ:", err)
+	}
 
-    ch, err := conn.Channel()
-    if err != nil {
-        log.Fatal("Error creando canal:", err)
-    }
+	ch, err := conn.Channel()
+	if err != nil {
+		log.Fatal("Error creating RabbitMQ channel:", err)
+	}
 
-    return &RabbitMQAdapter{
-        conn:    conn,
-        channel: ch,
-    }
+	return &RabbitMQAdapter{
+		conn: conn,
+		ch:   ch,
+	}
 }
 
-func (r *RabbitMQAdapter) ConsumeMessages(handler func(string, []byte)) error {
-    // Declarar el exchange.
+// ConsumeSensorMessages configura y consume mensajes para sensores.
+func (r *RabbitMQAdapter) ConsumeSensorMessages() <-chan amqp.Delivery {
 	exchangeName := "mainex"
-	err := r.channel.ExchangeDeclare(
-		exchangeName, // nombre del exchange
-		"topic",      // tipo de exchange ("direct", "fanout", "topic", etc.)
-		true,         // durable
-		false,        // auto-deleted
-		false,        // internal
-		false,        // no-wait
-		nil,          // arguments adicionales
-	)
-	if err != nil {
-		log.Fatal("Error declarando el exchange:", err)
-	}
+	queueName := "sensorsapi"
+	routingKey := "apisensors"
 
-	// Declarar la cola.
-	q, err := r.channel.QueueDeclare(
-		"sensorsapi", // nombre de la cola
-		true,         // durable
-		false,        // delete when unused
-		false,        // exclusive
-		false,        // no-wait
-		nil,          // arguments
-	)
-	if err != nil {
-		log.Fatal("Error declarando cola:", err)
-	}
-
-	// Enlazar la cola con el exchange usando un routing key.
-	routingKey := "apisensors" // Ejemplo: recibe todos los mensajes con routing key que empiecen con "sensor."
-	err = r.channel.QueueBind(
-		q.Name,       // nombre de la cola
-		routingKey,   // routing key
-		exchangeName, // nombre del exchange
+	err := r.ch.ExchangeDeclare(
+		exchangeName,
+		"topic",
+		true,
+		false,
+		false,
 		false,
 		nil,
 	)
 	if err != nil {
-		log.Fatal("Error haciendo bind de la cola al exchange:", err)
+		log.Fatal("Error declaring exchange:", err)
 	}
 
-	msgs, err := r.channel.Consume(
-		q.Name, // cola
-		"",     // consumer
-		true,   // auto-ack
-		false,  // exclusivo
-		false,  // no-local
-		false,  // no-wait
-		nil,    // args
+	q, err := r.ch.QueueDeclare(queueName, true, false, false, false, nil)
+	if err != nil {
+		log.Fatal("Error declaring sensor queue:", err)
+	}
+
+	err = r.ch.QueueBind(q.Name, routingKey, exchangeName, false, nil)
+	if err != nil {
+		log.Fatal("Error binding sensor queue:", err)
+	}
+
+	msgs, err := r.ch.Consume(q.Name, "", true, false, false, false, nil)
+	if err != nil {
+		log.Fatal("Error registering sensor consumer:", err)
+	}
+
+	return msgs
+}
+
+// ConsumeUserRequestMessages configura y consume mensajes para solicitudes de usuario.
+func (r *RabbitMQAdapter) ConsumeUserRequestMessages() <-chan amqp.Delivery {
+	exchangeName := "mainex"
+	queueName := "userRequest"
+	routingKey := "admin"
+
+	err := r.ch.ExchangeDeclare(
+		exchangeName,
+		"topic",
+		true,
+		false,
+		false,
+		false,
+		nil,
 	)
 	if err != nil {
-		log.Fatal("Error registrando consumer:", err)
+		log.Fatal("Error declaring exchange:", err)
 	}
 
-    go func() {
-        for msg := range msgs {
-            var sensor struct{ IDPlace int }
-            if json.Unmarshal(msg.Body, &sensor) == nil {
-                handler(strconv.Itoa(sensor.IDPlace), msg.Body)
-            }
-        }
-    }()
+	q, err := r.ch.QueueDeclare(queueName, true, false, false, false, nil)
+	if err != nil {
+		log.Fatal("Error declaring user requests queue:", err)
+	}
 
-    return nil
+	err = r.ch.QueueBind(q.Name, routingKey, exchangeName, false, nil)
+	if err != nil {
+		log.Fatal("Error binding user requests queue:", err)
+	}
+
+	msgs, err := r.ch.Consume(q.Name, "", true, false, false, false, nil)
+	if err != nil {
+		log.Fatal("Error registering user requests consumer:", err)
+	}
+
+	return msgs
+}
+
+func (r *RabbitMQAdapter) Close() {
+	if r.ch != nil {
+		r.ch.Close()
+	}
+	if r.conn != nil {
+		r.conn.Close()
+	}
 }

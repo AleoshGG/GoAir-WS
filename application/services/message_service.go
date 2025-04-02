@@ -1,32 +1,56 @@
 package services
 
 import (
+	"encoding/json"
+	"log"
+
 	"GoAir-WS/domain/entities"
 	"GoAir-WS/domain/repositories"
-	"encoding/json"
-	"strconv"
 )
-type WebSocketHandler interface {
-    BroadcastToRoom(roomID string, data []byte)
-}
 
 type MessageService struct {
-    consumer        repositories.MessageConsumer
-    websocketHandler WebSocketHandler
+	messageRepo repositories.MessageRepository
+	wsAdapter   WebSocketAdapter
 }
 
-func NewMessageService(consumer repositories.MessageConsumer, wsHandler WebSocketHandler) *MessageService {
-    return &MessageService{
-        consumer:        consumer,
-        websocketHandler: wsHandler,
-    }
+type WebSocketAdapter interface {
+	BroadcastSensor(sensor entities.Sensor)
+	BroadcastUserRequest(req entities.UserRequest)
 }
 
-func (s *MessageService) StartMessageProcessing() error {
-    return s.consumer.ConsumeMessages(func(placeID string, data []byte) {
-        var sensor entities.Sensor
-        if err := json.Unmarshal(data, &sensor); err == nil {
-            s.websocketHandler.BroadcastToRoom(strconv.Itoa(sensor.Id_place), data)
-        }
-    })
+func NewMessageService(msgRepo repositories.MessageRepository, wsAdapter WebSocketAdapter) *MessageService {
+	return &MessageService{
+		messageRepo: msgRepo,
+		wsAdapter:   wsAdapter,
+	}
+}
+
+// StartMessageProcessing inicia dos goroutines: una para mensajes Sensor y otra para UserRequest.
+func (s *MessageService) StartMessageProcessing() {
+	sensorMsgs := s.messageRepo.ConsumeSensorMessages()
+	userReqMsgs := s.messageRepo.ConsumeUserRequestMessages()
+
+	go func() {
+		for msg := range sensorMsgs {
+			var sensor entities.Sensor
+			if err := json.Unmarshal(msg.Body, &sensor); err != nil {
+				log.Println("Error decoding sensor message:", err)
+				continue
+			}
+			// Se espera que los clientes se registren usando el IdPlace (convertido a string)
+			s.wsAdapter.BroadcastSensor(sensor)
+		}
+	}()
+
+	go func() {
+		for msg := range userReqMsgs {
+			var req entities.UserRequest
+			if err := json.Unmarshal(msg.Body, &req); err != nil {
+				log.Println("Error decoding user request message:", err)
+				continue
+			}
+			// Se espera que los clientes se registren usando el Destination
+			s.wsAdapter.BroadcastUserRequest(req)
+		}
+	}()
 }

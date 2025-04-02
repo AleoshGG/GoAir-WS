@@ -1,16 +1,16 @@
 package controllers
 
 import (
-	"GoAir-WS/infrastructure/adapters"
 	"net/http"
 
+	"GoAir-WS/infrastructure/adapters"
 )
 
 type WebSocketController struct {
-	wsAdapter *adapters.GorillaWebSocketAdapter
+	wsAdapter *adapters.WebSocketAdapter
 }
 
-func NewWebSocketController(wsAdapter *adapters.GorillaWebSocketAdapter) *WebSocketController {
+func NewWebSocketController(wsAdapter *adapters.WebSocketAdapter) *WebSocketController {
 	return &WebSocketController{wsAdapter: wsAdapter}
 }
 
