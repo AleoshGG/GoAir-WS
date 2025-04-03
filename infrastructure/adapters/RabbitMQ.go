@@ -103,6 +103,42 @@ func (r *RabbitMQAdapter) ConsumeUserRequestMessages() <-chan amqp.Delivery {
 	return msgs
 }
 
+func (r *RabbitMQAdapter) ConsumeConfirmInstallationMessages() <-chan amqp.Delivery {
+	exchangeName := "mainex"
+	queueName := "confirmInstallation"
+	routingKey := "success"
+
+	err := r.ch.ExchangeDeclare(
+		exchangeName,
+		"topic",
+		true,
+		false,
+		false,
+		false,
+		nil,
+	)
+	if err != nil {
+		log.Fatal("Error declaring exchange:", err)
+	}
+
+	q, err := r.ch.QueueDeclare(queueName, true, false, false, false, nil)
+	if err != nil {
+		log.Fatal("Error declaring user requests queue:", err)
+	}
+
+	err = r.ch.QueueBind(q.Name, routingKey, exchangeName, false, nil)
+	if err != nil {
+		log.Fatal("Error binding user requests queue:", err)
+	}
+
+	msgs, err := r.ch.Consume(q.Name, "", true, false, false, false, nil)
+	if err != nil {
+		log.Fatal("Error registering user requests consumer:", err)
+	}
+
+	return msgs
+}
+
 func (r *RabbitMQAdapter) Close() {
 	if r.ch != nil {
 		r.ch.Close()

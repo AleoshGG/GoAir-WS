@@ -15,9 +15,13 @@ type WebSocketAdapter struct {
 	sensorClients map[string]*websocket.Conn
 	// Clientes para solicitudes de usuario (key = Destination)
 	userReqClients map[string]*websocket.Conn
+	// Clientes para mensajes de confirmación de instalación de usuario (key = id_user)
+	cInstallationClients map[string]*websocket.Conn
 
 	sensorMu  sync.Mutex
 	userReqMu sync.Mutex
+	cIntallMu sync.Mutex
+
 	upgrader  websocket.Upgrader
 }
 
@@ -25,6 +29,7 @@ func NewWebSocketAdapter() *WebSocketAdapter {
 	return &WebSocketAdapter{
 		sensorClients:  make(map[string]*websocket.Conn),
 		userReqClients: make(map[string]*websocket.Conn),
+		cInstallationClients: make(map[string]*websocket.Conn),
 		upgrader: websocket.Upgrader{
 			CheckOrigin: func(r *http.Request) bool { return true },
 		},
@@ -32,7 +37,7 @@ func NewWebSocketAdapter() *WebSocketAdapter {
 }
 
 // HandleWebSocket registra el cliente. Se espera recibir query params "type" y "key"
-// donde "type" puede ser "sensor" o "user" y "key" la llave (por ejemplo, placeID o destination).
+// donde "type" puede ser "sensor"/"user"/"confirm" y "key" la llave (por ejemplo, placeID o destination, userID).
 func (w *WebSocketAdapter) HandleWebSocket(wr http.ResponseWriter, r *http.Request) {
 	conn, err := w.upgrader.Upgrade(wr, r, nil)
 	if err != nil {
@@ -54,6 +59,10 @@ func (w *WebSocketAdapter) HandleWebSocket(wr http.ResponseWriter, r *http.Reque
 		w.userReqMu.Lock()
 		w.userReqClients[key] = conn
 		w.userReqMu.Unlock()
+	} else if clientType == "confirm" {
+		w.cIntallMu.Lock()
+		w.cInstallationClients[key] = conn
+		w.cIntallMu.Unlock()
 	} else {
 		conn.Close()
 		return
@@ -84,6 +93,19 @@ func (w *WebSocketAdapter) BroadcastUserRequest(req entities.UserRequest) {
 			log.Println("Error sending user request data:", err)
 			conn.Close()
 			delete(w.userReqClients, key)
+		}
+	}
+}
+
+func (w *WebSocketAdapter) BroadcastConfirmationInstallation(msg entities.ConfirmInstalltionMessage) {
+	key := strconv.Itoa(msg.Id_user)
+	w.cIntallMu.Lock()
+	defer w.cIntallMu.Unlock()
+	if conn, ok := w.cInstallationClients[key]; ok {
+		if err := conn.WriteJSON(msg); err != nil {
+			log.Println("Error sending sensor data:", err)
+			conn.Close()
+			delete(w.cInstallationClients, key)
 		}
 	}
 }

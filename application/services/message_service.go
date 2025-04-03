@@ -2,6 +2,7 @@ package services
 
 import (
 	"encoding/json"
+	"fmt"
 	"log"
 
 	"GoAir-WS/domain/entities"
@@ -16,6 +17,7 @@ type MessageService struct {
 type WebSocketAdapter interface {
 	BroadcastSensor(sensor entities.Sensor)
 	BroadcastUserRequest(req entities.UserRequest)
+	BroadcastConfirmationInstallation(msg entities.ConfirmInstalltionMessage)
 }
 
 func NewMessageService(msgRepo repositories.MessageRepository, wsAdapter WebSocketAdapter) *MessageService {
@@ -29,6 +31,7 @@ func NewMessageService(msgRepo repositories.MessageRepository, wsAdapter WebSock
 func (s *MessageService) StartMessageProcessing() {
 	sensorMsgs := s.messageRepo.ConsumeSensorMessages()
 	userReqMsgs := s.messageRepo.ConsumeUserRequestMessages()
+	cInstallation := s.messageRepo.ConsumeConfirmInstallationMessages()
 
 	go func() {
 		for msg := range sensorMsgs {
@@ -51,6 +54,19 @@ func (s *MessageService) StartMessageProcessing() {
 			}
 			// Se espera que los clientes se registren usando el Destination
 			s.wsAdapter.BroadcastUserRequest(req)
+		}
+	}()
+
+	go func() {
+		for msg := range cInstallation {
+			var cIMsg entities.ConfirmInstalltionMessage
+			if err := json.Unmarshal(msg.Body, &cIMsg); err != nil {
+				log.Println("Error decoding user request message:", err)
+				continue
+			}
+			fmt.Print(cIMsg)
+			// Se espera que los clientes se registren usando el Destination
+			s.wsAdapter.BroadcastConfirmationInstallation(cIMsg)
 		}
 	}()
 }
