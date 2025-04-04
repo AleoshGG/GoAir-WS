@@ -6,6 +6,6 @@ type Sensor struct {
 	Temperature float64  `json:"temperature"`
 	Humidity    float64  `json:"humidity"`
 	Id_device   string   `json:"id_device"`
-	Ventilador  string   `json:"ventidador"`
+	Ventilador  string   `json:"ventilador"`
 	Id_place    int      `json:"id_place"`
 }
