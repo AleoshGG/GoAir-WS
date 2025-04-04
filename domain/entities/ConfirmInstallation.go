@@ -1,6 +1,6 @@
 package entities
 
 type ConfirmInstalltionMessage struct {
-	Id_user int
-	Status  string
+	Id_user int    `json:"id_user"`
+	Status  string `json:"status"`
 }

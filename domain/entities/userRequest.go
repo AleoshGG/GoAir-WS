@@ -9,10 +9,10 @@ const (
 )
 
 type UserRequest struct {
-	Destination        string
-	Id_application     int
-	First_name         string
-	Last_name          string
-	Status_application StatusApplication
-	Id_user            int
+	Destination        string            `json:"destination"`
+	Id_application     int               `json:"id_application"`
+	First_name         string            `json:"first_name"`
+	Last_name          string            `json:"last_name"`
+	Status_application StatusApplication `json:"status_application"`
+	Id_user            int               `json:"id_user"`
 }
