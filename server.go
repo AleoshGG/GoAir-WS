@@ -1,7 +1,7 @@
 package main
 
 import (
-	"GoAir-WS/infrastructure"
+	config "GoAir-WS/infrastructure"
 	"GoAir-WS/infrastructure/routes"
 	"log"
 	"os"
@@ -16,7 +16,13 @@ func main() {
 	config.SetupDependencies()
 
 	r := gin.Default()
-	r.Use(cors.Default())
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"*"}, // o "*" para pruebas
+		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowHeaders:     []string{"Authorization", "Content-Type"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+	}))
 	routes.RegisterRoutes(r, config.WebSocketCtrl)
 
 	port := os.Getenv("PORT")
